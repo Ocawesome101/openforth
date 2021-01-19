@@ -1,4 +1,4 @@
--- basic FORTH dialect for OpenComputers --
+-- basic FORTH dialect for OpenComputers EEPROMs --
 
 -- terminal interfacing code
 local cx, cy = 1, 1
@@ -67,10 +67,8 @@ function stack:pop()
 end
 
 local words = {}
-words["."] = function()
-  local val = stack:pop()
-  write(tostring(val) .. " ", true)
-end
+words["."] = function() local val = stack:pop()
+  write(tostring(val) .. " ", true) end
 
 words["+"] = function() stack:push(stack:pop() + stack:pop()) end
 words["-"] = function() stack:push(stack:pop() - stack:pop()) end
@@ -83,51 +81,53 @@ words.pwr = function() computer.shutdown(not not stack:pop()) end
 words.drop = function() stack:pop() end
 
 local defs = {}
-local indef, incmt, jelse, jthen
+local id, ic, je, jt
 
 local function eval(exp)
-  -- FORTH is extremely simple - watch this
+  -- FORTH is extremely simple
+  -- this isn't quite a fully compliant implementation
+  -- and it's definitely minimal
   for word in exp:gmatch("[^ ]+") do
     word = word:lower()
-    if word == ":" and not incmt then
-      if not indef then
-        indef = true
+    if word == ":" and not ic then
+      if not id then
+        id = true
       else
         write("unexpected: ':'")
         return
       end
-    elseif word == ";" and not incmt then
-      if indef then
-        indef = false
+    elseif word == ";" and not ic then
+      if id then
+        id = false
       else
         write("unexpected: ';'")
         return
       end
-    elseif indef then
-      if type(indef) == "boolean" then
-        indef = word
-        defs[indef] = ""
+    elseif id then
+      if type(id) == "boolean" then
+        id = word
+        defs[id] = ""
       else
-        defs[indef] = defs[indef] .. " " .. word
+        defs[id] = defs[id] .. " " .. word
       end
     elseif word == "(" then
-      incmt = true
+      ic = true
     elseif word == ")" then
-      if not incmt then
+      if not ic then
         write("unexpected: ')'")
         return
       else
-        incmt = false
+        ic = false
       end
-    elseif not incmt then
-      if jelse then
-        if word == "else" then jelse = false end
-      elseif jthen then
-        if word == "then" then jthen = false end
+    elseif not ic then
+      if je then
+        if word == "else" then je = false end
+      elseif jt then
+        if word == "then" then jt = false end
       elseif word == "if" then
-        jelse = not not stack:pop()
+        je = not not stack:pop()
       elseif word == "else" then
-        jthen = true
+        jt = true
       elseif defs[word] then
         if not eval(defs[word]) then return end
       elseif words[word] then
