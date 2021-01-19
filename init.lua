@@ -83,7 +83,7 @@ words.pwr = function() computer.shutdown(not not stack:pop()) end
 
 
 local defs = {}
-local indef, incmt
+local indef, incmt, jelse, jthen
 
 local function eval(exp)
   -- FORTH is extremely simple - watch this
@@ -121,8 +121,12 @@ local function eval(exp)
     elseif not incmt then
       if jelse then
         if word == "else" then jelse = false end
+      elseif jthen then
+        if word == "then" then jthen = false end
       elseif word == "if" then
         jelse = not not stack:pop()
+      elseif word == "else" then
+        jthen = true
       elseif defs[word] then
         if not eval(defs[word]) then return end
       elseif words[word] then
