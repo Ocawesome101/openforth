@@ -517,6 +517,10 @@ while true do
     iostream:write(ret .. "\n")
   elseif not ret then
     iostream:write(err .. "\n")
+  elseif in_def then
+    iostream:write("def close expected but not found\n")
+    words[in_def] = nil
+    in_def = false
   else
     iostream:write("OK\n")
   end
