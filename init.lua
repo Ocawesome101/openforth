@@ -1,9 +1,10 @@
 -- basic FORTH dialect for OpenComputers EEPROMs --
 
 -- terminal interfacing code
-local g=component.proxy((assert(component.list("gpu", true)(),
+local cp=component
+local g=cp.proxy((assert(cp.list("gpu", true)(),
                                           "no GPU found but one is required")))
-g.bind((assert(component.list("screen", true)(), "no screen found but one is required")))
+g.bind((assert(cp.list("screen", true)(), "no screen found but one is required")))
 local cx,cy,w,h=1,1,g.maxResolution()
 g.setResolution(w,h)
 g.fill(1,1,w,h," ")
@@ -57,25 +58,27 @@ end
 
 wr("OPEN FORTH 0.3.0")
 
-local stack={push=function(s,v)table.insert(s,1,v)end,
+local st={push=function(s,v)table.insert(s,1,v)end,
 pop=function(s)return table.remove(s,1)end}
 
 local w,d,f,id,ic,je,jt={},{},{}
 wr("FSTREE...",true)
-for a,c in component.list("filesystem")do f[#f+1]=a end
+for a,c in cp.list("filesystem")do f[#f+1]=a end
 wr("OK")
-w["."]=function()local val=stack:pop()wr(tostring(val).." ",true) end
-w["+"]=function()stack:push(stack:pop()+stack:pop())end
-w["-"]=function()stack:push(stack:pop()-stack:pop())end
-w["*"]=function()stack:push(stack:pop()*stack:pop())end
-w["/"]=function()stack:push(stack:pop()/stack:pop())end
-w["<"]=function()stack:push(stack:pop()==stack:pop())end
+w["."]=function()local val=st:pop()wr(tostring(val).." ",true) end
+w["+"]=function()st:push(st:pop()+st:pop())end
+w["-"]=function()st:push(st:pop()-st:pop())end
+w["*"]=function()st:push(st:pop()*st:pop())end
+w["/"]=function()st:push(st:pop()/st:pop())end
+w["<"]=function()st:push(st:pop()==st:pop())end
 w.cr=function()wr("")end
-w.dup=function()local v=stack:pop()stack:push(v)stack:push(v)end
-w.pwr=function()computer.shutdown(not not stack:pop())end
-w.drop=function()stack:pop()end
+w.dup=function()local v=st:pop()st:push(v)st:push(v)end
+w.pwr=function()computer.shutdown(st:pop()==1)end
+w.drop=function()st:pop()end
 w.fls=function()for i=1,#f,1 do wr(tostring(i),true)wr("="..f[i])end end
-w.ldi=function()local n,d,c,x,h=stack:pop(),"";x=component.proxy(f[n]);h=x.open("init.lua");if not x then return end repeat c=x.read(h,math.huge)d=d..(c or"")until not c local ok,err=load(d,"=init.lua")if not ok then wr(err)return else ok() end end
+local c=computer
+w.free=function()local t,f,u=c.totalMemory(),c.freeMemory();u=t-f;wr("USED "..u)end
+w.ldi=function()local n,d,c,x,h=st:pop(),"";x=cp.proxy(f[n]);h=x.open("init.lua");if not x then return end repeat c=x.read(h,math.huge)d=d..(c or"")until not c local ok,err=load(d,"=init.lua")if not ok then wr(err)return else ok() end end
 w.words=function()for k in pairs(w) do wr(k.." ",true) end for k in pairs(d) do wr(k.." ",true) end end
 
 local function e(exp)
@@ -120,7 +123,7 @@ local function e(exp)
       elseif jt then
         if _w=="then" then jt=false end
       elseif _w=="if" then
-        je=not not stack:pop()
+        je=not not st:pop()
       elseif _w=="else" then
         jt=true
       elseif d[_w] then
@@ -128,9 +131,9 @@ local function e(exp)
       elseif w[_w] then
         w[_w]()
       elseif tonumber(_w) then
-        stack:push(tonumber(_w))
+        st:push(tonumber(_w))
       elseif tonumber(_w, 16) then
-        stack:push(tonumber(_w, 16))
+        st:push(tonumber(_w, 16))
       else
         wr(string.format("undefined: '%s'", tostring(_w)))
         return
