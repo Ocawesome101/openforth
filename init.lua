@@ -339,6 +339,8 @@ for a, t in component.list() do
 end
 iostream:write("done\n")
 
+iostream:write("setting up stacks")
+-- parameter stack
 local stack = {}
 function stack:push(x)
   local n = #stack
@@ -356,6 +358,23 @@ function stack:pop()
   return x
 end
 
+-- loop control stack
+local loop_stack = {
+  push = function(self, v)
+    self[#self + 1] = v
+  end,
+  pop = function(self)
+    local n = #self
+    local x = self[n]
+    if not x then
+      error("loop stack underflow")
+    end
+    self[n] = nil
+    return x
+  end,
+}
+iostream:write("...done\n")
+
 local function print(...)
   local args = table.pack(...)
   local write = ""
@@ -367,18 +386,25 @@ local function print(...)
   return true
 end
 
-local words = {}
+-- there are some words which aren't implemented through this table, but which
+-- are still registered here so they'll show up in `words`.
+-- TODO: maybe rework the implementation so they are? i.e. have loop_stack
+-- provided as an argument.
+local function bland() end
+local words = {["do"] = bland, ["loop"] = blane}
 local jump_then, jump_else, in_def
 words["."] = function() iostream:write(tostring(stack:pop()) .. " ") end
 words["<"] = function() stack:push(stack:pop() == stack:pop()) end
 words["+"] = function() stack:push(stack:pop() + stack:pop()) end
-words["-"] = function() stack:push(stack:pop() - stack:pop()) end
+words["-"] = function() local n1,n2=stack:pop(),stack:pop()stack:push(n2-n1) end
 words["*"] = function() stack:push(stack:pop() * stack:pop()) end
-words["/"] = function() stack:push(stack:pop() / stack:pop()) end
+words["/"] = function() local n1,n2=stack:pop(),stack:pop()stack:push(n2/n1) end
 words[":"] = function() if in_def then return nil, "unexpected ':'" end
                           in_def = true end
 words[";"] = function() if not in_def then return nil, "unexpected ';'" end
                           in_def = false end
+words["i"] = function() local n = loop_stack:pop()
+                        loop_stack:push(n) stack:push(n) end
 words["cr"] = function() iostream:write("\n") end
 -- TODO: nested if/then/else will probably break, so may have to change these to
 -- TODO: nest levels rather than booleans
@@ -415,6 +441,12 @@ words["invoke"] = function()
       stack:push(result[i])
     end
   end
+end
+words["memfree"] = function()
+  stack:push(computer.freeMemory())
+end
+words["memtotal"] = function()
+  stack:push(computer.totalMemory())
 end
 words["write"] = function()
   iostream:write(tostring(stack:pop()):gsub("\\27", "\27"))
@@ -488,8 +520,8 @@ local function split_words(line)
 end
 
 evaluate = function(line)
-  local tokens = split_words(line)
-  for i=1, #tokens, 1 do
+  local tokens, i, do_loc = split_words(line), 1
+  while i <= #tokens do
     local word = tokens[i]
     word = tonumber(word) or word
     if type(word) == "number" or word:match("^\"(.+)\"$") then
@@ -498,12 +530,29 @@ evaluate = function(line)
       else
         stack:push(word)
       end
+    elseif not in_def and (word == "do" or word == "loop") then
+      if word == "do" then
+        do_loc = i
+        local index, limit = stack:pop(), stack:pop()
+        --print(limit, index)
+        loop_stack:push(limit)
+        loop_stack:push(index)
+      elseif word == "loop" then
+        local index, limit = loop_stack:pop(), loop_stack:pop()
+        if index < limit then
+          i = do_loc
+          index = index + 1
+          loop_stack:push(limit)
+          loop_stack:push(index)
+        end
+      end
     else
       local ok, err = call_word(word)
       if not ok then
         return nil, err
       end
     end
+    i = i + 1
   end
   return true
 end
