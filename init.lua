@@ -74,7 +74,7 @@ w.dup=function()local v=stack:pop()stack:push(v)stack:push(v)end
 w.pwr=function()computer.shutdown(not not stack:pop())end
 w.drop=function()stack:pop()end
 
-local d,id,ic,je,jt=()
+local d,id,ic,je,jt={}
 
 local function e(exp)
   -- FORTH is extremely simple
