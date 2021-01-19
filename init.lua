@@ -74,8 +74,9 @@ w.cr=function()wr("")end
 w.dup=function()local v=stack:pop()stack:push(v)stack:push(v)end
 w.pwr=function()computer.shutdown(not not stack:pop())end
 w.drop=function()stack:pop()end
-w.fls=function()for i=1,#f,1 do wr(i,true)wr("="..f[i])end end
+w.fls=function()for i=1,#f,1 do wr(tostring(i),true)wr("="..f[i])end end
 w.ldi=function()local n,d,c,x,h=stack:pop(),"";x=component.proxy(f[n]);h=x.open("init.lua");if not x then return end repeat c=x.read(h,math.huge)d=d..(c or"")until not c local ok,err=load(d,"=init.lua")if not ok then wr(err)return else ok() end end
+w.words=function()for k in pairs(w) do wr(k.." ",true) end for k in pairs(d) do wr(k.." ",true) end end
 
 local function e(exp)
   -- FORTH is extremely simple
