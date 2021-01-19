@@ -393,7 +393,8 @@ end
 local function bland() end
 local words = {["do"] = bland, ["loop"] = blane}
 local jump_then, jump_else, in_def
-words["."] = function() iostream:write(tostring(stack:pop()) .. " ") end
+words["."] = function() iostream:write(tostring(stack:pop()):gsub("\\27", "\27")
+                                                                  .. " ") end
 words["<"] = function() stack:push(stack:pop() == stack:pop()) end
 words["+"] = function() stack:push(stack:pop() + stack:pop()) end
 words["-"] = function() local n1,n2=stack:pop(),stack:pop()stack:push(n2-n1) end
@@ -406,6 +407,7 @@ words[";"] = function() if not in_def then return nil, "unexpected ';'" end
 words["i"] = function() local n = loop_stack:pop()
                         loop_stack:push(n) stack:push(n) end
 words["cr"] = function() iostream:write("\n") end
+words["dup"] = function() local n = stack:pop() stack:push(n) stack:push(n) end
 -- TODO: nested if/then/else will probably break, so may have to change these to
 -- TODO: nest levels rather than booleans
 words["if"] = function() if not stack:pop() then jump_else = true end end
@@ -448,8 +450,23 @@ end
 words["memtotal"] = function()
   stack:push(computer.totalMemory())
 end
-words["write"] = function()
-  iostream:write(tostring(stack:pop()):gsub("\\27", "\27"))
+words["read"] = function()
+  local n = iostream:read()
+  stack:push(tonumber(n) or n)
+end
+words["write"] = "."
+words["split"] = function()
+  local item = stack:pop()
+  if type(item) == "number" then
+    stack:push(item)
+    return
+  end
+  local n = 0
+  for word in item:reverse():gmatch("[^ ]+") do
+    stack:push(word:reverse())
+    n = n + 1
+  end
+  stack:push(n)
 end
 
 local evaluate
