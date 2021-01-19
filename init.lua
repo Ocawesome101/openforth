@@ -80,7 +80,7 @@ words["<"] = function() stack:push(stack:pop() == stack:pop()) end
 words.cr = function() write("") end
 words.dup = function() local v = stack:pop() stack:push(v) stack:push(v) end
 words.pwr = function() computer.shutdown(not not stack:pop()) end
-
+words.drop = function() stack:pop() end
 
 local defs = {}
 local indef, incmt, jelse, jthen
@@ -106,6 +106,7 @@ local function eval(exp)
     elseif indef then
       if type(indef) == "boolean" then
         indef = word
+        defs[indef] = ""
       else
         defs[indef] = defs[indef] .. " " .. word
       end
