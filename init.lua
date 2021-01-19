@@ -1,24 +1,24 @@
 -- basic FORTH dialect for OpenComputers EEPROMs --
 
 -- terminal interfacing code
-local cx,cy=1,1
-local gpu=component.proxy((assert(component.list("gpu", true)(),
+local g=component.proxy((assert(component.list("gpu", true)(),
                                           "no GPU found but one is required")))
-gpu.bind((assert(component.list("screen", true)(), "no screen found but one is required")))
-local w,h=gpu.maxResolution()
-gpu.setResolution(w,h)
+g.bind((assert(component.list("screen", true)(), "no screen found but one is required")))
+local cx,cy,w,h=1,1,g.maxResolution()
+g.setResolution(w,h)
+g.fill(1,1,w,h," ")
 local function check()
   if cx>w then cx,cy=1,cy+1 end
-  if cy>=h then cy=h-1 gpu.copy(1,1,w,h,0,-1)gpu.fill(1,h,w,1," ") end
+  if cy>=h then cy=h-1 g.copy(1,1,w,h,0,-1)g.fill(1,h,w,1," ") end
   if cx<1 then cx=w+cx cy=cy-1 end
   if cy<1 then cy=1 end
 end
 local function wr(ln, cr)
   ln=ln:gsub("\n","")
-  while #ln > 0 do
+  while #ln>0 do
     local wl=ln:sub(1,w-cx+1)
     ln=ln:sub(#wl+1)
-    gpu.set(cx, cy, wl)
+    g.set(cx, cy, wl)
     cx=cx+#wl
     check()
   end
@@ -55,26 +55,27 @@ local function readline()
   end
 end
 
-wr("OPEN FORTH 0.1.0")
+wr("OPEN FORTH 0.3.0")
 
-local stack={push=function(val)table.insert(stack,1,val)end,
-pop=function()return table.remove(stack,1)end}
+local stack={push=function(s,v)table.insert(s,1,v)end,
+pop=function(s)return table.remove(s,1)end}
 
-local w={}
-w["."]=function() local val=stack:pop()
-  wr(tostring(val).." ",true) end
-
-w["+"]=function()stack:push(stack:pop() + stack:pop())end
-w["-"]=function()stack:push(stack:pop() - stack:pop())end
-w["*"]=function()stack:push(stack:pop() * stack:pop())end
-w["/"]=function()stack:push(stack:pop() / stack:pop())end
+local w,d,f,id,ic,je,jt={},{},{}
+wr("FSTREE...",true)
+for a,c in component.list("filesystem")do f[#f+1]=a end
+wr("OK")
+w["."]=function()local val=stack:pop()wr(tostring(val).." ",true) end
+w["+"]=function()stack:push(stack:pop()+stack:pop())end
+w["-"]=function()stack:push(stack:pop()-stack:pop())end
+w["*"]=function()stack:push(stack:pop()*stack:pop())end
+w["/"]=function()stack:push(stack:pop()/stack:pop())end
 w["<"]=function()stack:push(stack:pop()==stack:pop())end
 w.cr=function()wr("")end
 w.dup=function()local v=stack:pop()stack:push(v)stack:push(v)end
 w.pwr=function()computer.shutdown(not not stack:pop())end
 w.drop=function()stack:pop()end
-
-local d,id,ic,je,jt={}
+w.fls=function()for i=1,#f,1 do wr(i,true)wr("="..f[i])end end
+w.ldi=function()local n,d,c,x,h=stack:pop(),"";x=component.proxy(f[n]);h=x.open("init.lua");if not x then return end repeat c=x.read(h,math.huge)d=d..(c or"")until not c local ok,err=load(d,"=init.lua")if not ok then wr(err)return else ok() end end
 
 local function e(exp)
   -- FORTH is extremely simple
@@ -139,13 +140,11 @@ local function e(exp)
 end
 
 while true do
-  wr("> ")
-  -- hax
-  cx,cy=3,cy-1
+  --wr("",true)
   local ret=readline()
-  if #ret > 0 then
+  if #ret>0 then
     if e(ret) then
-      wr("ok")
+      wr("OK")
     end
   end
 end
