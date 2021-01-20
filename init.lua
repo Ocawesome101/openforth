@@ -505,6 +505,7 @@ words["eval"] = function()
 end
 
 words["beep"] = function()local h,l=stack:pop(),stack:pop()computer.beep(h,l)end
+words["source"] = function()local w = stack:pop()iostream:write(tostring(words[w]).."\n")end
 iostream:write("done\n")
 
 local function call_word(word)
