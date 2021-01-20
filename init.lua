@@ -380,7 +380,7 @@ iostream:write("...done\n")
 -- TODO: maybe rework the implementation so they are? i.e. have loop_stack
 -- provided as an argument.
 local function bland() end
-local words = {["do"] = bland, ["loop"] = blane}
+local words = {["do"] = bland, ["loop"] = bland}
 local jump_then, jump_else, in_def
 words["."] = function() iostream:write(tostring(stack:pop()):gsub("\\27", "\27")
                                                                   .. " ") end
@@ -426,7 +426,6 @@ words["invoke"] = function()
   end
   local result = table.pack(component.invoke(ctree[n], method,
                                                       table.unpack(args)))
-  --
   for i=1, #result, 1 do
     if type(result[i]) == "table" then
       for n=1, #result[i], 1 do
@@ -448,6 +447,22 @@ words["read"] = function()
   local n = iostream:read()
   stack:push(tonumber(n) or n)
 end
+words["fread"] = function()
+  -- copied from eval
+  local fs, file = stack:pop(), stack:pop()
+  local comp = assert(ctree[fs] and component.type(ctree[fs]) == "filesystem"
+            and ctree[fs], -- this is so we can still have the fs address
+                           -- because WEIRDNESS
+              "specified component is not a filesystem or component not found")
+  local handle = assert(component.invoke(comp, "open", file, "r"))
+  local data = ""
+  repeat
+    local chunk = component.invoke(comp, "read", handle, math.huge)
+    data = data .. (chunk or "")
+  until not chunk
+  component.invoke(comp, "close", handle)
+  stack:push(data)
+end
 words["write"] = "."
 words["split"] = function()
   local item = stack:pop()
@@ -457,13 +472,34 @@ words["split"] = function()
   end
   local n = 0
   for word in item:reverse():gmatch("[^ ]+") do
-    stack:push(word:reverse())
+    stack:push(tonumber(word:reverse()) or word:reverse())
     n = n + 1
   end
   stack:push(n)
 end
-
+-- load a FORTH file from a fs and execute it
 local evaluate
+words["eval"] = function()
+  local fs, file = stack:pop(), stack:pop()
+  local comp = assert(ctree[fs] and component.type(ctree[fs]) == "filesystem"
+            and ctree[fs], -- this is so we can still have the fs address
+                           -- because WEIRDNESS
+              "specified component is not a filesystem or component not found")
+  local handle = assert(component.invoke(comp, "open", file, "r"))
+  local data = ""
+  repeat
+    local chunk = component.invoke(comp, "read", handle, math.huge)
+    data = data .. (chunk or "")
+  until not chunk
+  component.invoke(comp, "close", handle)
+  if file:match("%.lua$") then
+    return assert(load(data, "=" .. file, "bt", _G))()
+  end
+  for line in data:gmatch("[^\n]+") do
+    evaluate(line)
+  end
+end
+
 local function call_word(word)
   if type(word) == "string" then
     word = word:lower()
