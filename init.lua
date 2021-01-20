@@ -12,7 +12,7 @@ do
     0xFF0000,
     0x00FF00,
     0xFFFF00,
-    0x0000FF,
+    0x00AAFF,
     0xFF00FF,
     0x00FFFF,
     0xFFFFFF
@@ -153,8 +153,10 @@ do
         self.attributes.echo = true
       elseif n > 29 and n < 38 then
         self.fg = colors[n - 29]
+        self.gpu.setForeground(self.fg)
       elseif n > 39 and n < 48 then
         self.bg = colors[n - 39]
+        self.gpu.setBackground(self.bg)
       end
     end
   end
@@ -332,14 +334,14 @@ end
 
 -- The actual FORTH implementation starts now.
 
-iostream:write("Building component tree...")
+iostream:write("\27[32m*\27[37m Building component tree...")
 local ctree = {}
 for a, t in component.list() do
   ctree[#ctree + 1] = a
 end
 iostream:write("done\n")
 
-iostream:write("Setting up stacks")
+iostream:write("\27[32m*\27[37m Setting up stacks")
 -- parameter stack
 local stack = {}
 function stack:push(x)
@@ -375,7 +377,7 @@ local loop_stack = {
 }
 iostream:write("...done\n")
 
-iostream:write("Registering base words...")
+iostream:write("\27[32m*\27[37m Registering base words...")
 -- there are some words which aren't implemented through this table, but which
 -- are still registered here so they'll show up in `words`.
 -- TODO: maybe rework the implementation so they are? i.e. have loop_stack
@@ -614,20 +616,20 @@ evaluate = function(line)
   return true
 end
 
-iostream:write("\27[2J\27[1HWelcome to Open Forth 2.0.7\n")
+iostream:write("\27[34m*\27[37m Welcome to \27[33mOpen Forth 2.0.7\27[37m\n")
 
 while true do
   local x = iostream:read()
   local ok, ret, err = pcall(evaluate, x)
   if not ok then
-    iostream:write(ret .. "\n")
+    iostream:write("\27[31m" .. ret .. "\27[37m\n")
   elseif not ret then
-    iostream:write(err .. "\n")
+    iostream:write("\27[31m" .. err .. "\27[37m\n")
   elseif in_def then
-    iostream:write("def close expected but not found\n")
+    iostream:write("\27[31mdef close expected but not found\27[37m\n")
     words[in_def] = nil
     in_def = false
   else
-    iostream:write("OK\n")
+    iostream:write("\27[34mOK\27[37m\n")
   end
 end
