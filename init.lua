@@ -384,11 +384,14 @@ local words = {["do"] = bland, ["loop"] = blane}
 local jump_then, jump_else, in_def
 words["."] = function() iostream:write(tostring(stack:pop()):gsub("\\27", "\27")
                                                                   .. " ") end
-words["<"] = function() stack:push(stack:pop() == stack:pop()) end
+words["<"] = function() stack:push(stack:pop() < stack:pop()) end
+words[">"] = function() stack:push(stack:pop() > stack:pop()) end
+words["="] = function() stack:push(stack:pop() == stack:pop()) end
 words["+"] = function() local n1,n2=stack:pop(),stack:pop()stack:push(n1+n2) end
 words["-"] = function() local n1,n2=stack:pop(),stack:pop()stack:push(n2-n1) end
 words["*"] = function() local n1,n2=stack:pop(),stack:pop()stack:push(n1*n2) end
 words["/"] = function() local n1,n2=stack:pop(),stack:pop()stack:push(n2/n1) end
+words.mod = function() local n1,n2=stack:pop(),stack:pop()stack:push(n2%n1) end
 words[":"] = function() if in_def then return nil, "unexpected ':'" end
                           in_def = true end
 words[";"] = function() if not in_def then return nil, "unexpected ';'" end
@@ -402,8 +405,10 @@ words["dup"] = function() local n = stack:pop() stack:push(n) stack:push(n) end
 words["if"] = function() if not stack:pop() then jump_else = true end end
 words["else"] = function() if not jump_else then jump_then = true
                                             else jump_else = false end end
-words["then"] = function() jump_then = false end
+words["then"] = function() jump_then = false jump_else = false end
 words["drop"] = function() stack:pop() end
+words["swap"] = function() local x,y=stack:pop(),stack:pop()
+                                                  stack:push(x)stack:push(y) end
 words["words"] = function() iostream:write("\n") for k,v in pairs(words) do
                                                 iostream:write(k .. " ") end end
 words["power"] = function() local n = stack:pop() computer.shutdown(n == 1) end
@@ -463,7 +468,7 @@ local function call_word(word)
   if type(word) == "string" then
     word = word:lower()
   end
-  if jump_else then if word ~= "else" then return true end end
+  if jump_else and word ~= "else" and word ~= "then" then return true end
   if jump_then then if word ~= "then" then return true end end
   if in_def and word ~= ";" and word ~= ":" then
     if type(in_def) == "boolean" then
@@ -474,11 +479,15 @@ local function call_word(word)
     end
     return true
   end
+  if word:match("^(%.)\" (.+)\"$") then
+    local str = word:match("%.\" (.+)\"$")
+    stack:push(str)
+    return call_word(".")
+  end
   if not words[word] then
     return nil, word .. ": unrecognized word"
   end
   if type(words[word]) == "string" then
-    --iostream:write(tostring(words[word]) .. "\n")
     return evaluate(words[word])
   else
     local ret, err = words[word]()
@@ -496,6 +505,7 @@ local function split_words(line)
     if not in_cmt and not in_str then
       if char == '"' then
         in_str = true
+        word = word .. char
       elseif char == "(" then
         in_cmt = true
       elseif char == "\\" then -- \ comments out the rest of the line AIUI
@@ -515,7 +525,7 @@ local function split_words(line)
     elseif in_str then
       if char == '"' then
         in_str = false
-        words[#words + 1] = string.format("\"%s\"", word)
+        words[#words + 1] = string.format("%s\"", word)
         word = ""
       else
         word = word .. char
@@ -547,7 +557,7 @@ evaluate = function(line)
         loop_stack:push(index)
       elseif word == "loop" then
         local index, limit = loop_stack:pop(), loop_stack:pop()
-        if index < limit then
+        if index + 1 < limit then
           i = do_loc
           index = index + 1
           loop_stack:push(limit)
