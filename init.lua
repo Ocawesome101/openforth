@@ -375,17 +375,6 @@ local loop_stack = {
 }
 iostream:write("...done\n")
 
-local function print(...)
-  local args = table.pack(...)
-  local write = ""
-  for i=1, args.n, 1 do
-    write = string.format("%s%s ", write, tostring(args[i]))
-  end
-  write = write:sub(-2) .. "\n"
-  iostream:write(write)
-  return true
-end
-
 -- there are some words which aren't implemented through this table, but which
 -- are still registered here so they'll show up in `words`.
 -- TODO: maybe rework the implementation so they are? i.e. have loop_stack
@@ -396,9 +385,9 @@ local jump_then, jump_else, in_def
 words["."] = function() iostream:write(tostring(stack:pop()):gsub("\\27", "\27")
                                                                   .. " ") end
 words["<"] = function() stack:push(stack:pop() == stack:pop()) end
-words["+"] = function() stack:push(stack:pop() + stack:pop()) end
+words["+"] = function() local n1,n2=stack:pop(),stack:pop()stack:push(n1+n2) end
 words["-"] = function() local n1,n2=stack:pop(),stack:pop()stack:push(n2-n1) end
-words["*"] = function() stack:push(stack:pop() * stack:pop()) end
+words["*"] = function() local n1,n2=stack:pop(),stack:pop()stack:push(n1*n2) end
 words["/"] = function() local n1,n2=stack:pop(),stack:pop()stack:push(n2/n1) end
 words[":"] = function() if in_def then return nil, "unexpected ':'" end
                           in_def = true end
@@ -471,7 +460,9 @@ end
 
 local evaluate
 local function call_word(word)
-  word = word:lower()
+  if type(word) == "string" then
+    word = word:lower()
+  end
   if jump_else then if word ~= "else" then return true end end
   if jump_then then if word ~= "then" then return true end end
   if in_def and word ~= ";" and word ~= ":" then
@@ -487,6 +478,7 @@ local function call_word(word)
     return nil, word .. ": unrecognized word"
   end
   if type(words[word]) == "string" then
+    --iostream:write(tostring(words[word]) .. "\n")
     return evaluate(words[word])
   else
     local ret, err = words[word]()
@@ -538,20 +530,19 @@ end
 
 evaluate = function(line)
   local tokens, i, do_loc = split_words(line), 1
-  while i <= #tokens do
+  while tokens[i] do
     local word = tokens[i]
     word = tonumber(word) or word
-    if type(word) == "number" or word:match("^\"(.+)\"$") then
+    if (not in_def) and (type(word) == "number" or word:match("^\"(.+)\"$")) then
       if type(word) == "string" then
         stack:push(word:match("^\"(.+)\"$"))
       else
         stack:push(word)
       end
-    elseif not in_def and (word == "do" or word == "loop") then
+    elseif (not in_def) and (word == "do" or word == "loop") then
       if word == "do" then
         do_loc = i
         local index, limit = stack:pop(), stack:pop()
-        --print(limit, index)
         loop_stack:push(limit)
         loop_stack:push(index)
       elseif word == "loop" then
@@ -574,7 +565,7 @@ evaluate = function(line)
   return true
 end
 
-iostream:write("Open Forth 2.0.0\n")
+iostream:write("Open Forth 2.0.7\n")
 
 while true do
   local x = iostream:read()
