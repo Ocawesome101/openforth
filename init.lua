@@ -503,6 +503,8 @@ words["eval"] = function()
     evaluate(line)
   end
 end
+
+words["beep"] = function()local h,l=stack:pop(),stack:pop()computer.beep(h,l)end
 iostream:write("done\n")
 
 local function call_word(word)
@@ -617,6 +619,7 @@ evaluate = function(line)
 end
 
 iostream:write("\27[34m*\27[37m Welcome to \27[33mOpen Forth 2.0.7\27[37m\n")
+evaluate("0.1 260 beep 0.1 330 beep 0.1 392 beep 0.5 523 beep")
 
 while true do
   local x = iostream:read()
