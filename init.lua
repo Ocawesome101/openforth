@@ -339,7 +339,7 @@ for a, t in component.list() do
 end
 iostream:write("done\n")
 
-iostream:write("setting up stacks")
+iostream:write("Setting up stacks")
 -- parameter stack
 local stack = {}
 function stack:push(x)
@@ -375,6 +375,7 @@ local loop_stack = {
 }
 iostream:write("...done\n")
 
+iostream:write("Registering base words...")
 -- there are some words which aren't implemented through this table, but which
 -- are still registered here so they'll show up in `words`.
 -- TODO: maybe rework the implementation so they are? i.e. have loop_stack
@@ -411,6 +412,7 @@ words["swap"] = function() local x,y=stack:pop(),stack:pop()
                                                   stack:push(x)stack:push(y) end
 words["words"] = function() iostream:write("\n") for k,v in pairs(words) do
                                                 iostream:write(k .. " ") end end
+iostream:write("Registering extension words...")
 words["power"] = function() local n = stack:pop() computer.shutdown(n == 1) end
 words["clist"] = function() for i=1, #ctree, 1 do iostream:write(
                 string.format("%d=%s=%s\n",i,ctree[i],component.type(ctree[i]))
@@ -499,6 +501,7 @@ words["eval"] = function()
     evaluate(line)
   end
 end
+iostream:write("done\n")
 
 local function call_word(word)
   if type(word) == "string" then
@@ -611,7 +614,7 @@ evaluate = function(line)
   return true
 end
 
-iostream:write("Open Forth 2.0.7\n")
+iostream:write("\27[2J\27[1HWelcome to Open Forth 2.0.7\n")
 
 while true do
   local x = iostream:read()
